@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'Home.dart';
+import 'home.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key, required this.title});
@@ -25,8 +25,7 @@ class _LoginState extends State<Login> {
     try {
       final response = await http.post(
         url,
-        body:
-            json.encode({'cpf': cpf}),
+        body: json.encode({'cpf': cpf}),
         headers: {'Content-Type': 'application/json'},
       );
 
