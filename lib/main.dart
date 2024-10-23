@@ -7,10 +7,6 @@ void main() {
   runApp(const AttendanceApp());
 }
 
-Future inicialization(BuildContext? context) async {
-  await Future.delayed(const Duration(seconds: 2));
-}
-
 class AttendanceApp extends StatelessWidget {
   const AttendanceApp({super.key});
 

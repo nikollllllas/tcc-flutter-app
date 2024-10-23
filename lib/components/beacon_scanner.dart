@@ -92,7 +92,7 @@ class _BeaconScannerState extends State<BeaconScanner> {
   Future<void> _makeApiCall(String proximityUUID) async {
     try {
       final response = await http.get(Uri.parse(
-          'http://104.234.200.185:8888/api/school-call-student?id=$proximityUUID&cpf=${widget.cpf}'));
+          'http://192.168.3.43:3000/school-call-student?id=$proximityUUID&cpf=${widget.cpf}'));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         final message = jsonResponse['message'];
