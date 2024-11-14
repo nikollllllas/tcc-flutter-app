@@ -9,9 +9,9 @@ class RequirementStateController extends GetxController {
   var locationService = false.obs;
   late StreamSubscription<RangingResult> streamRanging;
   final beacons = <Beacon>[].obs;
-  var _startBroadcasting = false.obs;
-  var _startScanning = false.obs;
-  var _pauseScanning = false.obs;
+  final _startBroadcasting = false.obs;
+  final _startScanning = false.obs;
+  final _pauseScanning = false.obs;
   bool get bluetoothEnabled => bluetoothState.value == BluetoothState.stateOn;
   bool get authorizationStatusOk =>
       authorizationStatus.value == AuthorizationStatus.allowed ||
@@ -49,7 +49,7 @@ class RequirementStateController extends GetxController {
   }
 
   stopStreamRanging() async {
-    await streamRanging?.cancel();
+    await streamRanging.cancel();
   }
 
   Stream<bool> get startBroadcastStream {

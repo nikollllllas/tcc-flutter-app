@@ -24,7 +24,7 @@ class _HomeState extends State<Home> with TickerProviderStateMixin {
   ProgressDialog? _progressDialog;
 
   final _beaconScanner = BeaconScanner(
-    cpf: '',
+    id: '',
   );
 
   @override
@@ -186,91 +186,89 @@ class _HomeState extends State<Home> with TickerProviderStateMixin {
     );
   }
 }
-
-class Graph extends StatelessWidget {
-  const Graph({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 300,
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Text('Segunda'),
-              Text('Terça'),
-              Text('Quarta'),
-              Text('Quinta'),
-              Text('Sexta'),
-            ],
-          ),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Column(
-                  children: [
-                    Bar(value: 2),
-                    Text('2'),
-                  ],
-                ),
-                Column(
-                  children: [
-                    Bar(value: 4),
-                    Text('4'),
-                  ],
-                ),
-                Column(
-                  children: [
-                    Bar(value: 3),
-                    Text('3'),
-                  ],
-                ),
-                Column(
-                  children: [
-                    Bar(value: 1),
-                    Text('1'),
-                  ],
-                ),
-                Column(
-                  children: [
-                    Bar(value: 2),
-                    Text('2'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class Bar extends StatelessWidget {
-  final int value;
-
-  const Bar({super.key, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: value * 50,
-      width: 30,
-      color: Colors.blue,
-    );
-  }
-}
+//
+// class Graph extends StatelessWidget {
+//   const Graph({super.key});
+//   @override
+//   Widget build(BuildContext context) {
+//     return const SizedBox(
+//       height: 300,
+//       child: Column(
+//         children: [
+//           Row(
+//             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+//             children: [
+//               Text('Segunda'),
+//               Text('Terça'),
+//               Text('Quarta'),
+//               Text('Quinta'),
+//               Text('Sexta'),
+//             ],
+//           ),
+//           Expanded(
+//             child: Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+//               children: [
+//                 Column(
+//                   children: [
+//                     Bar(value: 2),
+//                     Text('2'),
+//                   ],
+//                 ),
+//                 Column(
+//                   children: [
+//                     Bar(value: 4),
+//                     Text('4'),
+//                   ],
+//                 ),
+//                 Column(
+//                   children: [
+//                     Bar(value: 3),
+//                     Text('3'),
+//                   ],
+//                 ),
+//                 Column(
+//                   children: [
+//                     Bar(value: 1),
+//                     Text('1'),
+//                   ],
+//                 ),
+//                 Column(
+//                   children: [
+//                     Bar(value: 2),
+//                     Text('2'),
+//                   ],
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
+//
+// class Bar extends StatelessWidget {
+//   final int value;
+//
+//   const Bar({super.key, required this.value});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Container(
+//       height: value * 50,
+//       width: 30,
+//       color: Colors.blue,
+//     );
+//   }
+// }
 
 class BeaconScanner {
-  final String cpf;
+  final String id;
 
-  BeaconScanner({required this.cpf});
+  BeaconScanner({required this.id});
 
   StreamSubscription<RangingResult>? _streamSubscription;
-  String _statusChamada = '';
-  ProgressDialog? _progressDialog;
 
   Future<void> initializeScanning() async {
     try {
@@ -289,12 +287,15 @@ class BeaconScanner {
     if (Platform.isIOS) {
       regions.add(
         Region(
-          identifier: 'Apple Airlocate',
+          identifier: 'iBeacon',
           proximityUUID: 'E2C56DB5-DFFB-48D2-B060-D0F5A71096E0',
         ),
       );
     } else {
-      regions.add(Region(identifier: 'iBeacon'));
+      regions.add(Region(
+        identifier: 'iBeacon',
+        proximityUUID: 'E2C56DB5-DFFB-48D2-B060-D0F5A71096E0',
+      ));
     }
 
     _streamSubscription = flutterBeacon.ranging(regions).listen(
