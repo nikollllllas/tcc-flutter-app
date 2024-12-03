@@ -1,4 +1,4 @@
-# tcc_attendance_app
+# TCC Flutter APP
 
 ## Getting Started
 
