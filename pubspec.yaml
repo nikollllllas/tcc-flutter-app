@@ -19,8 +19,9 @@ dependencies:
   app_settings: ^5.1.1
   progress_dialog_null_safe: ^3.0.0
   google_fonts: ^6.2.0
+  flutter_blue_plus: ^1.31.16
 
-dev_dependencies:
+dev_dependencies: 
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0

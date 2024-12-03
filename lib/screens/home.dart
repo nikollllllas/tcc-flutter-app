@@ -1,147 +1,151 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
-
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_beacon/flutter_beacon.dart';
-
-import 'package:progress_dialog_null_safe/progress_dialog_null_safe.dart';
+import 'package:get/get.dart';
+import '../controller/requirement_state_controller.dart';
 
 class Home extends StatefulWidget {
-  const Home({super.key, required this.token});
+  const Home({super.key, required this.id, required this.token});
 
+  final int id;
   final String token;
 
   @override
   State<Home> createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> with TickerProviderStateMixin {
+class _HomeState extends State<Home> {
   bool _isScanning = false;
+  bool _hasCalledApi = false;
   String _statusMessage = 'Pressione o botão para escanear por beacons.';
-  ProgressDialog? _progressDialog;
-
-  final _beaconScanner = BeaconScanner(
-    id: '',
-  );
+  final RequirementStateController _requirementController =
+      Get.put(RequirementStateController());
+  Timer? _scanTimer;
 
   @override
   void initState() {
     super.initState();
-    _progressDialog = ProgressDialog(context,
-        type: ProgressDialogType.normal, isDismissible: false);
+    _setupBeaconScanning();
+  }
+
+  void _setupBeaconScanning() {
+    print('Setting up beacon scanning...');
+    _requirementController.beacons.listen((beacons) {
+      print('Beacon listener triggered. Found ${beacons.length} beacons');
+      if (beacons.isNotEmpty && !_hasCalledApi) {
+        print('Processing beacons...');
+        for (var beacon in beacons) {
+          print(
+              'UUID: ${beacon.proximityUUID}, RSSI: ${beacon.rssi}, Distância: ${beacon.accuracy}m');
+        }
+
+        final beacon = beacons.first;
+        if (mounted) {
+          print('Found valid beacon, preparing API call...');
+          print('Using token: ${widget.token}');
+          setState(() {
+            _statusMessage = 'Beacon encontrado com sucesso!';
+            _hasCalledApi = true;
+          });
+          _makeApiCall(beacon.proximityUUID, widget.id);
+          _requirementController.stopStreamRanging();
+          _scanTimer?.cancel();
+          setState(() {
+            _isScanning = false;
+          });
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
-    _beaconScanner.dispose();
+    _requirementController.stopStreamRanging();
+    _scanTimer?.cancel();
     super.dispose();
   }
 
   void _startScanning() async {
+    print('Starting scan process...');
     setState(() {
       _isScanning = true;
+      _hasCalledApi = false;
       _statusMessage = 'Procurando Beacon...';
     });
 
     try {
-      await _beaconScanner.initializeScanning();
-      _beaconScanner.startRanging(
-        onBeaconFound: (beacon) async {
-          setState(() {
-            _statusMessage = 'Beacon encontrado com sucesso!';
-          });
-          _showLoadingModal();
-          await _makeApiCall(beacon.proximityUUID, widget.token);
-        },
-        onRangingError: (error) {
-          setState(() {
-            _isScanning = false;
-            _statusMessage = 'Erro ao escanear: $error';
-          });
-        },
-      );
+      print('Initializing beacon scanning...');
+      _requirementController.startScanning();
+
+      // Stop scanning after 10 seconds
+      _scanTimer?.cancel();
+      _scanTimer = Timer(const Duration(seconds: 10), () {
+        print('Scan timeout reached');
+        _requirementController.stopStreamRanging();
+        setState(() {
+          _isScanning = false;
+          _statusMessage =
+              'Scan finalizado. Pressione para escanear novamente.';
+        });
+      });
     } on PlatformException catch (error) {
+      print('Platform Exception during scan: $error');
       setState(() {
         _isScanning = false;
+        _hasCalledApi = false;
         _statusMessage = 'Erro na biblioteca: $error';
       });
     }
   }
 
-  void _showLoadingModal() {
-    _progressDialog!.show();
-  }
+  Future<void> _makeApiCall(String proximityUUID, int id) async {
+    print('\n=== Making API Call ===');
+    print('UUID: $proximityUUID');
+    print('Student ID: $id');
+    print('Token: ${widget.token}');
 
-  Future<void> _makeApiCall(String proximityUUID, String cpf) async {
     try {
-      final response = await http.get(
-        Uri.parse(
-            'http://192.168.3.43:3000/school-call-student?id=$proximityUUID&cpf=$cpf'),
-      );
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        final message = jsonResponse['message'];
+      final url =
+          Uri.parse('https://tcc-attendance-api.onrender.com/school-call');
+      print('API URL: $url');
 
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'token': widget.token,
+        },
+        body: json.encode({
+          'studentId': id,
+          'proximityUUID': proximityUUID,
+        }),
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      print('Response token: ${widget.token}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('API call successful');
         setState(() {
           _statusMessage = 'Chamada enviada com sucesso!';
         });
-        _progressDialog!.hide();
-        showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: const Text('Retorno da Chamada'),
-              content: Text(message),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Fechar'),
-                ),
-              ],
-            );
-          },
-        );
       } else {
-        final jsonResponse = jsonDecode(response.body);
-        final error = jsonResponse['error'];
-        _progressDialog!.hide();
-        showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: const Text('Retorno da Chamada'),
-              content: Text(error),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Fechar'),
-                ),
-              ],
-            );
-          },
-        );
+        print('API call failed with status ${response.statusCode}');
+        final errorData = json.decode(response.body);
+        setState(() {
+          _statusMessage = 'Erro: ${errorData['message'] ?? 'Unknown error'}';
+        });
       }
     } catch (error) {
-      _progressDialog!.hide();
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Erro'),
-            content: const Text('Erro ao conectar ao servidor'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Fechar'),
-              ),
-            ],
-          );
-        },
-      );
+      print('API call error: $error');
+      setState(() {
+        _statusMessage = 'Erro na comunicação: $error';
+      });
     }
+    print('=== API Call Complete ===\n');
   }
 
   @override
@@ -149,178 +153,68 @@ class _HomeState extends State<Home> with TickerProviderStateMixin {
     const Color backgroundColor = Color(0xFF182026);
 
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Marque sua presença!',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Marque sua presença!'),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 24),
         backgroundColor: backgroundColor,
       ),
-      backgroundColor: backgroundColor,
-      body: Column(
-        children: [
-          Center(
-            child: ElevatedButton(
-              style: ButtonStyle(
-                minimumSize: WidgetStateProperty.all<Size>(const Size(300, 600)),
-                backgroundColor: WidgetStateProperty.all<Color>(Colors.blue.shade300),
-                shape: WidgetStateProperty.all<OutlinedBorder>(
-                  const CircleBorder(),
-                ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Container(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Spacer(flex: 1),
+                  // Fixed size container for the button
+                  SizedBox(
+                    width: 300,
+                    height: 300,
+                    child: ElevatedButton(
+                      style: ButtonStyle(
+                        backgroundColor: WidgetStateProperty.all<Color>(
+                            Colors.blue.shade300),
+                        shape: WidgetStateProperty.all<OutlinedBorder>(
+                          const CircleBorder(),
+                        ),
+                      ),
+                      onPressed: _isScanning ? null : _startScanning,
+                      child: const Text(
+                        "Marcar Presença!",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Container(
+                    height: 60,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _statusMessage,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Spacer(flex: 1),
+                ],
               ),
-              onPressed: _startScanning,
-              child: const Text("Marcar Presença!"),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            _statusMessage,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
-  }
-}
-//
-// class Graph extends StatelessWidget {
-//   const Graph({super.key});
-//   @override
-//   Widget build(BuildContext context) {
-//     return const SizedBox(
-//       height: 300,
-//       child: Column(
-//         children: [
-//           Row(
-//             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-//             children: [
-//               Text('Segunda'),
-//               Text('Terça'),
-//               Text('Quarta'),
-//               Text('Quinta'),
-//               Text('Sexta'),
-//             ],
-//           ),
-//           Expanded(
-//             child: Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-//               children: [
-//                 Column(
-//                   children: [
-//                     Bar(value: 2),
-//                     Text('2'),
-//                   ],
-//                 ),
-//                 Column(
-//                   children: [
-//                     Bar(value: 4),
-//                     Text('4'),
-//                   ],
-//                 ),
-//                 Column(
-//                   children: [
-//                     Bar(value: 3),
-//                     Text('3'),
-//                   ],
-//                 ),
-//                 Column(
-//                   children: [
-//                     Bar(value: 1),
-//                     Text('1'),
-//                   ],
-//                 ),
-//                 Column(
-//                   children: [
-//                     Bar(value: 2),
-//                     Text('2'),
-//                   ],
-//                 ),
-//               ],
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
-//
-// class Bar extends StatelessWidget {
-//   final int value;
-//
-//   const Bar({super.key, required this.value});
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//       height: value * 50,
-//       width: 30,
-//       color: Colors.blue,
-//     );
-//   }
-// }
-
-class BeaconScanner {
-  final String id;
-
-  BeaconScanner({required this.id});
-
-  StreamSubscription<RangingResult>? _streamSubscription;
-
-  Future<void> initializeScanning() async {
-    try {
-      await flutterBeacon.initializeScanning;
-    } on PlatformException {
-      print('Falha ao buscar por beacons, erro na biblioteca.');
-    }
-  }
-
-  void startRanging({
-    required Function(Beacon) onBeaconFound,
-    required Function(String) onRangingError,
-  }) {
-    final regions = <Region>[];
-
-    if (Platform.isIOS) {
-      regions.add(
-        Region(
-          identifier: 'iBeacon',
-          proximityUUID: 'E2C56DB5-DFFB-48D2-B060-D0F5A71096E0',
-        ),
-      );
-    } else {
-      regions.add(Region(
-        identifier: 'iBeacon',
-        proximityUUID: 'E2C56DB5-DFFB-48D2-B060-D0F5A71096E0',
-      ));
-    }
-
-    _streamSubscription = flutterBeacon.ranging(regions).listen(
-          (RangingResult result) async {
-        if (result.beacons.isEmpty) {
-          onRangingError('Não tem beacon perto.');
-          _streamSubscription?.cancel();
-        }
-
-        for (var i = 0; i < result.beacons.length; i++) {
-          final beacon = result.beacons[i];
-
-          if (beacon.accuracy <= 10.01) {
-            onBeaconFound(beacon);
-            _streamSubscription?.cancel();
-          } else {
-            onRangingError(
-                'Chegue mais perto do beacon. \n Você está a ${beacon.accuracy} de distância do beacon.');
-          }
-        }
-      },
-    );
-  }
-
-  void dispose() {
-    _streamSubscription?.cancel();
   }
 }

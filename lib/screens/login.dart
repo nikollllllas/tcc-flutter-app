@@ -17,9 +17,11 @@ class _LoginState extends State<Login> {
   TextEditingController idController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   Color backgroundColor = const Color(0xFF182026);
+  bool _isLoading = false;
+
 
   Future<void> _authenticate() async {
-    final url = Uri.parse('http://192.168.3.43:3000/auth/login');
+    final url = Uri.parse('https://tcc-attendance-api.onrender.com/auth/login');
     final id = int.parse(idController.text);
     final password = passwordController.text;
 
@@ -33,17 +35,24 @@ class _LoginState extends State<Login> {
       print('Response body: ${response.body}');
 
       if (response.statusCode == 201) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        final String token = responseData['token'];
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => Home(
-              token: token,
+        final responseData = json.decode(response.body);
+        final token = responseData['token'];
+        
+        if (token != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Home(
+                id: id,
+                token: token,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Token not found in response')),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Invalid Credentials')),
@@ -62,8 +71,9 @@ class _LoginState extends State<Login> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 24),
         backgroundColor: backgroundColor,
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 24),
+
       ),
       backgroundColor: backgroundColor,
       body: Column(
@@ -84,6 +94,7 @@ class _LoginState extends State<Login> {
                           style: const TextStyle(color: Colors.white70),
                           decoration: const InputDecoration(
                               border: OutlineInputBorder(), labelText: "ID"),
+                          keyboardType: TextInputType.number,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, insira seu ID';
@@ -122,17 +133,29 @@ class _LoginState extends State<Login> {
                 backgroundColor: Colors.black38,
                 minimumSize: const Size(double.infinity, 50),
               ),
-              onPressed: () {
+              onPressed: _isLoading
+                  ? null
+                  : () {
                 if (_formKey.currentState!.validate()) {
                   _authenticate();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content: Text('Por favor, preencha os campos')),
+                      content: Text('Por favor, preencha os campos'),
+                    ),
                   );
                 }
               },
-              child: const Text(
+              child: _isLoading
+                  ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+                  : const Text(
                 'Entrar',
                 style: TextStyle(color: Colors.white),
                 textAlign: TextAlign.center,
