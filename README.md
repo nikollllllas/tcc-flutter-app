@@ -7,13 +7,13 @@
 1. **Clone the repository:**
 
 ```bash
-git clone https://github.com/nikollllllas/tcc_flutter_app.git
+git clone https://github.com/nikollllllas/tcc-flutter-app.git
 ```
 
 2. **Navigate to the project directory:**
 
 ```bash
-cd tcc_attendance_app
+cd tcc-flutter-app
 ```
 
 3. **Install dependencies:**
